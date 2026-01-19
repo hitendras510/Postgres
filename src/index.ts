@@ -1,5 +1,5 @@
 import { Client } from "pg";
-import e, { express } from "express";  
+import  express  from "express";  
 import type{Request,Response} from "express";
 
 const app = express();
@@ -9,24 +9,43 @@ const pgClient = new Client({
   connectionString:
     "postgresql://neondb_owner:npg_xoLhCbnf24FU@ep-late-union-ahbwqvj6-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
 });
+pgClient.connect();
 
 app.post("signup", async (req: Request, res:Response) => {
    const { username, email, password } = req.body; 
+
+   const {city,country,street,pincode} = req.body;
+
    try {
-    const query = `INSERT INTO users (username,email,password) VALUES ($1 ,$2, $3);`
+
+    const query = `INSERT INTO users (username,email,password) VALUES ($1 ,$2, $3) RETURNING id;`
+    const addressQuery = `INSERT INTO address (city,country,street,pincode,user_id) VALUES ($1 ,$2, $3,$4,$5);`;
+
+
+  //TRANSCATION :  
+    await pgClient.query("BEGIN;")
+
     const response = await pgClient.query(query,[username,email,password]);
+    const userId = response.rows[0].id;
+    
+    const addressQueryResponse = await pgClient.query(addressQuery,[city,country,street,pincode,userId]);
+
+    await pgClient.query("COMMIT;") //COMMIT -> TAKE BOTH QUERY AND COMMIT IT 
+
        res.json({
         message: "You have signed up"
        })
-    
+
    } catch (e) {
     console.log(e);
-    res.json({
-
+    res.json({ 
+ message: "Error while signinup"
     })
    }
 });
 
-app.port(3000);
-// const insertQuery = `INSERT INTO  todo (username, email,password) VALUES ('${username}','${email}','${password}')`;
-// const response = await pgClient.query(insertQuery); 
+
+
+
+
+app.listen(3000);
